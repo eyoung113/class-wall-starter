@@ -10,17 +10,20 @@
     h1 { font-size: 24px; }
     .notice { background: #ffe9e9; padding: 10px; }
 
-    /* 로그인 버튼이 들어올 자리 */
+    /* 로그인 버튼 / 내 이름이 들어오는 자리 */
     #userArea { margin: 10px 0; color: #666; }
+    #userArea span { margin-right: 8px; }
 
     /* 메모 쓰는 칸 */
     #writer { margin: 16px 0; }
     #writer textarea { width: 400px; font-size: 16px; }
+    #writer textarea:disabled { background: #f2f2f2; color: #999; }
 
     /* 메모가 붙는 담벼락 */
     #wall { display: flex; flex-wrap: wrap; gap: 10px; }
     .memo { border: 1px solid #ddd; background: #fffde7; padding: 10px; width: 200px; font-size: 15px; }
     .memo button { float: right; }
+    .memoAuthor { font-size: 12px; color: #888; margin-bottom: 4px; }
 
     /* 글자 수 부족 안내 문구 */
     #hint { color: #c0392b; font-size: 13px; margin-top: 4px; }
@@ -30,11 +33,11 @@
 
   <h1>우리 반 담벼락</h1>
 
-  <!-- 백엔드 2 시간에 여기에 로그인 버튼과 내 이름이 들어옵니다 -->
-  <div id="userArea">아직 로그인 기능이 없습니다.</div>
+  <!-- app.js가 로그인 상태에 따라 버튼과 내 이름을 채워 넣습니다 -->
+  <div id="userArea"></div>
 
   <div id="writer">
-    <textarea id="input" rows="3" placeholder="메모를 쓰고 엔터 (5글자 이상)"></textarea>
+    <textarea id="input" rows="3" placeholder="로그인 후 메모를 쓸 수 있습니다." disabled></textarea>
     <p id="hint" hidden></p>
   </div>
 

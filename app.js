@@ -16,6 +16,13 @@ import {
   orderBy,
   onSnapshot
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 
 // Firebase 설정값
 const firebaseConfig = {
@@ -33,6 +40,62 @@ const db = getFirestore(firebaseApp);
 
 // Firestore 안의 "memos" 컬렉션을 가리킵니다.
 const memosCol = collection(db, "memos");
+
+// 구글 로그인
+const auth = getAuth(firebaseApp);
+const provider = new GoogleAuthProvider();
+
+// 지금 로그인한 사용자. 로그인 전에는 null입니다.
+let currentUser = null;
+
+
+// ===================================================
+// 로그인 / 로그아웃
+// ===================================================
+
+function login() {
+  signInWithPopup(auth, provider).catch(function (err) {
+    console.error("로그인 오류:", err);
+  });
+}
+
+function logout() {
+  signOut(auth);
+}
+
+// 로그인 상태가 바뀔 때마다(로그인 성공, 로그아웃) 자동으로 호출됩니다.
+onAuthStateChanged(auth, function (user) {
+  currentUser = user;
+  renderUserArea(user);
+});
+
+// 로그인 버튼 / 내 이름을 화면에 그립니다.
+function renderUserArea(user) {
+  const userArea = document.getElementById("userArea");
+  userArea.innerHTML = "";
+
+  if (user) {
+    const name = document.createElement("span");
+    name.textContent = (user.displayName || "익명") + "님";
+    userArea.appendChild(name);
+
+    const logoutBtn = document.createElement("button");
+    logoutBtn.textContent = "로그아웃";
+    logoutBtn.addEventListener("click", logout);
+    userArea.appendChild(logoutBtn);
+
+    input.disabled = false;
+    input.placeholder = "메모를 쓰고 엔터 (5글자 이상)";
+  } else {
+    const loginBtn = document.createElement("button");
+    loginBtn.textContent = "구글로 로그인";
+    loginBtn.addEventListener("click", login);
+    userArea.appendChild(loginBtn);
+
+    input.disabled = true;
+    input.placeholder = "로그인 후 메모를 쓸 수 있습니다.";
+  }
+}
 
 
 // ===================================================
@@ -54,17 +117,20 @@ function loadMemos() {
 
 // 메모를 새로 씁니다.
 // Firestore의 "memos" 컬렉션에 문서를 추가합니다.
-// 백엔드 2: 여기에 "누가 썼는지"(uid)를 함께 저장하게 됩니다.
+// 로그인한 사용자의 uid와 이름을 함께 저장해서 "누가 썼는지" 알 수 있습니다.
 async function addMemo(text) {
   await addDoc(memosCol, {
     text: text,
-    createdAt: Date.now()
+    createdAt: Date.now(),
+    uid: currentUser.uid,
+    authorName: currentUser.displayName || "익명"
   });
 }
 
 // 메모를 지웁니다.
 // id는 Firestore 문서 ID(문자열)입니다.
-// 백엔드 2: 지금은 누구든 남의 메모를 지울 수 있습니다. 이걸 막는 것이 과제입니다.
+// 작성자 본인만 지울 수 있도록 makeMemo()에서 × 버튼을 본인 메모에만 보여줍니다.
+// Firestore 보안 규칙에서도 동일하게 막습니다.
 async function deleteMemo(id) {
   await deleteDoc(doc(db, "memos", id));
 }
@@ -89,13 +155,21 @@ function makeMemo(memo) {
   const div = document.createElement("div");
   div.className = "memo";
 
-  const del = document.createElement("button");
-  del.textContent = "×";
-  // Firestore 연동 후 render()는 onSnapshot이 자동 호출하므로 별도 호출 불필요
-  del.addEventListener("click", function () {
-    deleteMemo(memo.id);
-  });
-  div.appendChild(del);
+  // 본인이 쓴 메모에만 × 버튼을 보여줍니다.
+  if (currentUser && memo.uid === currentUser.uid) {
+    const del = document.createElement("button");
+    del.textContent = "×";
+    // Firestore 연동 후 render()는 onSnapshot이 자동 호출하므로 별도 호출 불필요
+    del.addEventListener("click", function () {
+      deleteMemo(memo.id);
+    });
+    div.appendChild(del);
+  }
+
+  const author = document.createElement("div");
+  author.className = "memoAuthor";
+  author.textContent = memo.authorName || "익명";
+  div.appendChild(author);
 
   const span = document.createElement("span");
   span.textContent = memo.text;
@@ -116,6 +190,8 @@ const hint  = document.getElementById("hint");   // 글자 수 안내 문구
 input.addEventListener("keydown", async function (e) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
+
+    if (!currentUser) return;
 
     const text = input.value.trim();
     if (text === "") return;

@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// 우리 반 담벼락 - Firestore 보안 규칙
+//
+// 구글 로그인이 붙은 뒤 규칙입니다. 로그인한 사용자만 메모를 쓸 수 있고,
+// 자기가 쓴 메모만 지울 수 있습니다. 담벼락 읽기는 누구나 가능합니다.
+//
+// 이 파일은 참고용입니다. 실제 적용은 Firebase 콘솔의
+// Firestore Database > 규칙 탭에 이 내용을 붙여넣고 "게시"를 눌러야 합니다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /memos/{memoId} {
+      allow read: if true;
+
+      // 로그인한 사용자만 쓸 수 있고, 자기 uid로만 저장할 수 있습니다.
+      // app.js의 5글자 제한과 동일하게, 서버 쪽에서도 한 번 더 검사합니다.
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() >= 5
+                    && request.resource.data.createdAt is number;
+
+      // 작성자 본인만 지울 수 있습니다.
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+
+      allow update: if false;
+    }
+  }
+}
