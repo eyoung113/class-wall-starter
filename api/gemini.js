@@ -19,11 +19,11 @@
 //   이 파일은 /api/gemini 주소가 됩니다.
 //   API 키는 코드에 적지 말고 Vercel 환경변수 GEMINI_API_KEY에 넣습니다.
 //
-// 모델은 무료로 쓸 수 있는 gemini-2.5-flash를 씁니다.
+// 모델은 무료로 쓸 수 있는 gemini-3.6-flash를 씁니다.
 // (Google AI Studio: https://aistudio.google.com/apikey 에서 무료로 키를 만들 수 있습니다)
 // ===================================================
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.6-flash";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
