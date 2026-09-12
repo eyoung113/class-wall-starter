@@ -21,6 +21,9 @@
     #wall { display: flex; flex-wrap: wrap; gap: 10px; }
     .memo { border: 1px solid #ddd; background: #fffde7; padding: 10px; width: 200px; font-size: 15px; }
     .memo button { float: right; }
+
+    /* 글자 수 부족 안내 문구 */
+    #hint { color: #c0392b; font-size: 13px; margin-top: 4px; }
   </style>
 </head>
 <body>
@@ -31,7 +34,8 @@
   <div id="userArea">아직 로그인 기능이 없습니다.</div>
 
   <div id="writer">
-    <textarea id="input" rows="3" placeholder="메모를 쓰고 엔터"></textarea>
+    <textarea id="input" rows="3" placeholder="메모를 쓰고 엔터 (5글자 이상)"></textarea>
+    <p id="hint" hidden></p>
   </div>
 
   <!-- 메모는 app.js가 그립니다 -->

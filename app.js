@@ -111,6 +111,7 @@ function makeMemo(memo) {
 // ===================================================
 
 const input = document.getElementById("input");
+const hint  = document.getElementById("hint");   // 글자 수 안내 문구
 
 input.addEventListener("keydown", function (e) {
   if (e.key === "Enter" && !e.shiftKey) {
@@ -119,7 +120,16 @@ input.addEventListener("keydown", function (e) {
     const text = input.value.trim();
     if (text === "") return;
 
-    // Firestore 연동 후 render()는 onSnapshot이 자동 호출하므로 별도 호출 불필요
+    // 5글자 미만이면 저장하지 않고 안내 문구를 보여줍니다.
+    // Firestore 보안 규칙에서도 동일하게 막으므로 이중으로 적용됩니다.
+    if (text.length < 5) {
+      hint.textContent = "⚠️ 메모는 5글자 이상 써야 저장됩니다.";
+      hint.hidden = false;
+      return;
+    }
+
+    // 유효한 입력이면 안내 문구를 숨기고 Firestore에 저장합니다.
+    hint.hidden = true;
     addMemo(text);
     input.value = "";
   }
