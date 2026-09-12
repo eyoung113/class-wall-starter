@@ -113,7 +113,7 @@ function makeMemo(memo) {
 const input = document.getElementById("input");
 const hint  = document.getElementById("hint");   // 글자 수 안내 문구
 
-input.addEventListener("keydown", function (e) {
+input.addEventListener("keydown", async function (e) {
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
 
@@ -128,10 +128,19 @@ input.addEventListener("keydown", function (e) {
       return;
     }
 
-    // 유효한 입력이면 안내 문구를 숨기고 Firestore에 저장합니다.
     hint.hidden = true;
-    addMemo(text);
-    input.value = "";
+
+    try {
+      // addMemo가 async이므로 저장이 끝날 때까지 기다립니다.
+      // 저장에 성공한 뒤에만 입력창을 비웁니다.
+      await addMemo(text);
+      input.value = "";
+    } catch (err) {
+      // 저장 실패 시 글은 그대로 두고 오류 안내를 표시합니다.
+      hint.textContent = "⚠️ 저장에 실패했습니다. 다시 시도해 주세요.";
+      hint.hidden = false;
+      console.error("Firestore 저장 오류:", err);
+    }
   }
 });
 
