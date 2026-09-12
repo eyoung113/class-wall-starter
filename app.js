@@ -12,6 +12,7 @@ import {
   addDoc,
   deleteDoc,
   doc,
+  getDoc,
   query,
   orderBy,
   onSnapshot
@@ -48,6 +49,16 @@ const provider = new GoogleAuthProvider();
 // 지금 로그인한 사용자. 로그인 전에는 null입니다.
 let currentUser = null;
 
+// 지금 로그인한 사용자의 역할. "teacher" 또는 "student". 로그인 전에는 null입니다.
+// roles/{uid} 문서의 role 필드로 정해지며, 문서가 없으면 학생으로 취급합니다.
+// 이 문서는 학생이 직접 만들 수 없고(Firestore 규칙에서 막음), 선생님 계정은
+// Firebase 콘솔의 Firestore에서 관리자가 직접 등록해야 합니다.
+let currentRole = null;
+
+// onSnapshot이 마지막으로 전달한 메모 목록.
+// 역할이 바뀌었을 때(로그인/로그아웃) 담벼락을 다시 그리는 데 씁니다.
+let lastMemos = [];
+
 
 // ===================================================
 // 로그인 / 로그아웃
@@ -63,20 +74,37 @@ function logout() {
   signOut(auth);
 }
 
+// roles/{uid} 문서를 읽어서 "teacher" 또는 "student"를 돌려줍니다.
+async function fetchRole(uid) {
+  try {
+    const snap = await getDoc(doc(db, "roles", uid));
+    if (snap.exists() && snap.data().role === "teacher") {
+      return "teacher";
+    }
+  } catch (err) {
+    console.error("역할 조회 오류:", err);
+  }
+  return "student";
+}
+
 // 로그인 상태가 바뀔 때마다(로그인 성공, 로그아웃) 자동으로 호출됩니다.
-onAuthStateChanged(auth, function (user) {
+onAuthStateChanged(auth, async function (user) {
   currentUser = user;
+  currentRole = user ? await fetchRole(user.uid) : null;
   renderUserArea(user);
+  render(lastMemos);
 });
 
-// 로그인 버튼 / 내 이름을 화면에 그립니다.
+// 로그인 버튼 / 내 이름과 역할을 화면에 그립니다.
 function renderUserArea(user) {
   const userArea = document.getElementById("userArea");
   userArea.innerHTML = "";
 
   if (user) {
+    const roleLabel = currentRole === "teacher" ? "선생님" : "학생";
+
     const name = document.createElement("span");
-    name.textContent = (user.displayName || "익명") + "님";
+    name.textContent = (user.displayName || "익명") + "님 (" + roleLabel + ")";
     userArea.appendChild(name);
 
     const logoutBtn = document.createElement("button");
@@ -111,6 +139,7 @@ function loadMemos() {
     const memos = snapshot.docs.map(function (docSnap) {
       return { id: docSnap.id, ...docSnap.data() };
     });
+    lastMemos = memos;
     render(memos);
   });
 }
@@ -129,7 +158,7 @@ async function addMemo(text) {
 
 // 메모를 지웁니다.
 // id는 Firestore 문서 ID(문자열)입니다.
-// 작성자 본인만 지울 수 있도록 makeMemo()에서 × 버튼을 본인 메모에만 보여줍니다.
+// 선생님만 지울 수 있도록 makeMemo()에서 × 버튼을 선생님에게만 보여줍니다.
 // Firestore 보안 규칙에서도 동일하게 막습니다.
 async function deleteMemo(id) {
   await deleteDoc(doc(db, "memos", id));
@@ -155,8 +184,8 @@ function makeMemo(memo) {
   const div = document.createElement("div");
   div.className = "memo";
 
-  // 본인이 쓴 메모에만 × 버튼을 보여줍니다.
-  if (currentUser && memo.uid === currentUser.uid) {
+  // 선생님만 × 버튼으로 메모를 지울 수 있습니다. (학생은 본인 메모도 삭제 불가)
+  if (currentRole === "teacher") {
     const del = document.createElement("button");
     del.textContent = "×";
     // Firestore 연동 후 render()는 onSnapshot이 자동 호출하므로 별도 호출 불필요
