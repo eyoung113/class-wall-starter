@@ -92,10 +92,6 @@ async function fetchRole(uid) {
 onAuthStateChanged(auth, async function (user) {
   currentUser = user;
   currentRole = user ? await fetchRole(user.uid) : null;
-  if (user) {
-    // 디버그용: Firestore roles 문서의 ID와 정확히 같은지 비교해 보세요.
-    console.log("로그인 uid:", user.uid, "/ 역할:", currentRole);
-  }
   renderUserArea(user);
   render(lastMemos);
 });
