@@ -68,7 +68,10 @@ export default async function handler(req, res) {
 
     if (!geminiRes.ok) {
       console.error("Gemini API 오류:", data);
-      res.status(502).json({ error: "Gemini 호출에 실패했습니다." });
+      const detail = data && data.error && data.error.message;
+      res.status(502).json({
+        error: "Gemini 호출에 실패했습니다." + (detail ? " (" + detail + ")" : "")
+      });
       return;
     }
 
