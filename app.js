@@ -13,6 +13,7 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  updateDoc,
   query,
   orderBy,
   onSnapshot
@@ -91,6 +92,10 @@ async function fetchRole(uid) {
 onAuthStateChanged(auth, async function (user) {
   currentUser = user;
   currentRole = user ? await fetchRole(user.uid) : null;
+  if (user) {
+    // 디버그용: Firestore roles 문서의 ID와 정확히 같은지 비교해 보세요.
+    console.log("로그인 uid:", user.uid, "/ 역할:", currentRole);
+  }
   renderUserArea(user);
   render(lastMemos);
 });
@@ -164,6 +169,27 @@ async function deleteMemo(id) {
   await deleteDoc(doc(db, "memos", id));
 }
 
+// 메모 내용을 Gemini(/api/gemini)에게 보내서 AI 코멘트를 받아 옵니다.
+// 개인정보 보호를 위해 메모 텍스트만 보내고, uid·이름은 보내지 않습니다.
+// 받은 코멘트는 memos 문서의 aiComment 필드에 저장해서 모두에게 보입니다.
+// 수정 권한이 선생님에게만 있으므로(Firestore 규칙), 이 함수도 선생님만 호출합니다.
+async function requestAiComment(memo) {
+  const res = await fetch("/api/gemini", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text: memo.text })
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || "AI 코멘트를 받지 못했습니다.");
+  }
+
+  await updateDoc(doc(db, "memos", memo.id), {
+    aiComment: data.comment
+  });
+}
+
 
 // ===================================================
 // 화면 그리기
@@ -203,6 +229,35 @@ function makeMemo(memo) {
   const span = document.createElement("span");
   span.textContent = memo.text;
   div.appendChild(span);
+
+  // 선생님만 AI 코멘트를 요청할 수 있습니다.
+  if (currentRole === "teacher") {
+    const aiBtn = document.createElement("button");
+    aiBtn.className = "aiBtn";
+    aiBtn.textContent = "AI 코멘트";
+    aiBtn.addEventListener("click", function () {
+      aiBtn.disabled = true;
+      aiBtn.textContent = "생성 중...";
+      requestAiComment(memo)
+        .catch(function (err) {
+          console.error("AI 코멘트 오류:", err);
+          alert("AI 코멘트를 가져오지 못했습니다: " + err.message);
+        })
+        .finally(function () {
+          aiBtn.disabled = false;
+          aiBtn.textContent = "AI 코멘트";
+        });
+    });
+    div.appendChild(aiBtn);
+  }
+
+  // 이미 받은 AI 코멘트가 있으면 모두에게 보여줍니다.
+  if (memo.aiComment) {
+    const aiComment = document.createElement("div");
+    aiComment.className = "aiComment";
+    aiComment.textContent = "🤖 " + memo.aiComment;
+    div.appendChild(aiComment);
+  }
 
   return div;
 }
